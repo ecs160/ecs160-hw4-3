@@ -93,7 +93,7 @@ int main(int argc, char *argv[])
 
     qsort(tweeters, tweeter_size, sizeof(NameEntry), comparator);
 
-    printTweeters(tweeters);
+    printTweeters(tweeters, tweeter_size);
 
     return 0;
 }
