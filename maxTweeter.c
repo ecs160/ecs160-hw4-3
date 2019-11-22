@@ -28,8 +28,11 @@ int comparator(const void* a, const void* b) {
     return (((NameEntry*)a)->count - ((NameEntry*)b)->count);
 }
 
-void printTweeters(NameEntry* tweeters) {
-    for (int i = 0; i < 10; i++) {
+void printTweeters(NameEntry* tweeters, int tweeter_size) {
+
+    int size = tweeter_size < 10? tweeter_size : 10;
+
+    for (int i = 0; i < size; i++) {
         printf("%s: %d\n", tweeters[i].name, tweeters[i].count);
     }
 }
