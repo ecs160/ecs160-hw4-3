@@ -16,10 +16,13 @@ void addTweeter(NameEntry* tweeters, char* name, int* tweeter_size) {
     for (int i = 0; i < *tweeter_size; i++) {
         if (strcmp(tweeters[i].name, name) == 0) {
             tweeters[i].count++;
+            return;
         }
     }
 
-    tweeters[*tweeter_size].name = name;
+    tweeters[*tweeter_size].name = (char*) malloc(strlen(name) * sizeof(char));
+
+    strcpy(tweeters[*tweeter_size].name, name);
     tweeters[*tweeter_size].count = 1;
     (*tweeter_size)++;
 }
@@ -60,7 +63,7 @@ int main(int argc, char *argv[])
         word = strtok (header, ",");
         while (word != NULL)
         {
-            if (strcmp(word, "name") == 0 || strcmp(word, "\"name\"")) {
+            if (strcmp(word, "name") == 0 || strcmp(word, "\"name\"") == 0) {
                 break;
             }
 
@@ -86,9 +89,17 @@ int main(int argc, char *argv[])
             } else {
                 word = strtok (NULL, ",");
             }
-
-            addTweeter(tweeters, word, &tweeter_size);
         }
+
+        char* name = (char*) malloc(strlen(word) * sizeof(char));
+
+        memset(name, '\0', strlen(word) * sizeof(char));
+
+        strcpy(name, word);
+
+        name[strlen(name) - 2] = '\0';
+
+        addTweeter(tweeters, name, &tweeter_size);
     }
 
     qsort(tweeters, tweeter_size, sizeof(NameEntry), comparator);
