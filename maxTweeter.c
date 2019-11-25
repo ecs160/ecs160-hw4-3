@@ -17,7 +17,7 @@ void terminate() {
 }
 
 /* update the count of tweeter in the map */
-void countTweeter(TweeterEntry *tweeter_counts, char *name, int *num_tweeters) {
+void countTweeter(TweeterEntry *tweeter_counts, const char *name, int *num_tweeters) {
     for (int i = 0; i < *num_tweeters; i++) {
         if (strcmp(tweeter_counts[i].name, name) == 0) {
             tweeter_counts[i].count++;
@@ -45,61 +45,78 @@ int comparator(const void *a, const void *b) {
     return ((TweeterEntry*)a)->count - ((TweeterEntry*)b)->count;
 }
 
+/* get position of name in the header */
+int getNamePos(FILE *fp) {
+    /* parse the header */
+    char header[MAX_LINE_SIZE];
+    int name_pos = 0;   // position of name
+
+    if (fgets(header, MAX_LINE_SIZE, fp) != NULL) {
+        const char* token = strtok(header, ",\n");
+
+        while(token) {
+
+            if (strcmp(token, "name") == 0 || strcmp(token, "\"name\"") == 0) {
+                // we found the name position
+                return name_pos;
+            }
+
+            name_pos++;
+            token = strtok(NULL, ",\n");
+        }
+    } else {
+        terminate();
+    }
+
+    return -1;
+}
+
+/* populate an array of tweeters along with their count */
+void getTweeters(FILE *fp, TweeterEntry *tweeter_counts, int *num_tweeters, int name_pos) {
+    // find tweeter counts
+    char line[MAX_LINE_SIZE];
+    while (fgets(line, MAX_LINE_SIZE, fp) != NULL) {
+        // go to position of the name
+        const char* token = strtok(line, ",\n");
+        for (int i = 0; i < name_pos && token; i++)
+            token = strtok(NULL, ",\n");
+
+        printf("name %s\n", token);
+
+        countTweeter(tweeter_counts, token, num_tweeters);
+    }
+
+    // TODO check the validity of each entry (no commas inside)
+}
+
 int main(int argc, char *argv[])
 {
     /* open tweets file */
     char *fname = argv[1];
     FILE *fp = fopen(fname, "r");
 
-    if (fp == NULL)
+    if (fp == NULL) {
         terminate();
-
-    /* parse the header */
-    char *header;
-    size_t bufsize = MAX_LINE_SIZE;
-    size_t nchars = getline(&header, &bufsize, fp);
-
-    if (nchars == -1)
-        terminate();
+    }
 
     // TODO check the validity of each token in the header (dangling quotes)
 
-    int name_pos = 0; // index of the 'name' column
-    char *token = strtok(header, ","); // get the first token
-    while (token != NULL) {
-        if (strcmp(token, "name") == 0 || strcmp(token, "\"name\"") == 0)
-                break;
+    int name_pos = getNamePos(fp);
 
-        name_pos++;
-        token = strtok(NULL, ",");
+    if (name_pos != -1) {
+        // found position of name in header
+        TweeterEntry tweeter_counts[MAX_FILE_SIZE];
+        int num_tweeters = 0;
+        getTweeters(fp, tweeter_counts, &num_tweeters, name_pos);
+
+        qsort(tweeter_counts, num_tweeters, sizeof(TweeterEntry), comparator);
+        printTweeters(tweeter_counts, num_tweeters);
+    } else {
+        // never found position of name in header
+        terminate();
     }
 
-    /* find tweeter counts */
-    TweeterEntry tweeter_counts[MAX_FILE_SIZE];
-    int num_tweeters = 0;
-    char *line;
-
-    // TODO check the validity of each entry (no commas inside)
-
-    while ((nchars = getline(&line, &bufsize, fp)) != -1) {
-        if (nchars == 0) // empty line
-            continue;
-
-        /* iterate through tokens until name column reached */
-        token = strtok(line, ","); // get the first token
-        for (int i = 1; i < name_pos; i++)
-            token = strtok(NULL, ",");
-
-        token[strlen(token) - 2] = '\0'; // strip new line
-        countTweeter(tweeter_counts, token, &num_tweeters);
-    }
-
-    qsort(tweeter_counts, num_tweeters, sizeof(TweeterEntry), comparator);
-    printTweeters(tweeter_counts, num_tweeters);
-
-    /* free allocated data structures */
-    free(header);
-    free(line);
+    // close the file
     fclose(fp);
 
     return 0;
