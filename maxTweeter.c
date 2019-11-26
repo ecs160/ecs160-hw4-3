@@ -17,7 +17,8 @@ void terminate() {
 }
 
 /* update the count of tweeter in the map */
-void countTweeter(TweeterEntry *tweeter_counts, char *name, int *num_tweeters) {
+void countTweeter(TweeterEntry *tweeter_counts, const char *name,
+                  int *num_tweeters) {
     for (int i = 0; i < *num_tweeters; i++) {
         if (strcmp(tweeter_counts[i].name, name) == 0) {
             tweeter_counts[i].count++;
@@ -45,6 +46,18 @@ int comparator(const void *a, const void *b) {
     return ((TweeterEntry*)a)->count - ((TweeterEntry*)b)->count;
 }
 
+/* given a string exit the program if dangling quotes are found */
+void checkToken(const char *token) {
+    char first_char = token[0];
+    char last_char = token[strlen(token) - 1];
+
+    if (first_char == '\"' && last_char != '\"')
+        terminate();
+
+    if (first_char != '\"' && last_char != '\"')
+        terminate();
+}
+
 int main(int argc, char *argv[])
 {
     /* open tweets file */
@@ -55,51 +68,42 @@ int main(int argc, char *argv[])
         terminate();
 
     /* parse the header */
-    char *header;
-    size_t bufsize = MAX_LINE_SIZE;
-    size_t nchars = getline(&header, &bufsize, fp);
-
-    if (nchars == -1)
+    char header[MAX_LINE_SIZE];
+    if (fgets(header, MAX_LINE_SIZE, fp) == NULL)
         terminate();
 
-    // TODO check the validity of each token in the header (dangling quotes)
-
     int name_pos = 0; // index of the 'name' column
-    char *token = strtok(header, ","); // get the first token
+    char *token = strtok(header, ",\n"); // get the first token
     while (token != NULL) {
+        checkToken(token);
+
         if (strcmp(token, "name") == 0 || strcmp(token, "\"name\"") == 0)
-                break;
+            break;
 
         name_pos++;
-        token = strtok(NULL, ",");
+        token = strtok(NULL, ",\n");
     }
 
     /* find tweeter counts */
     TweeterEntry tweeter_counts[MAX_FILE_SIZE];
     int num_tweeters = 0;
-    char *line;
+    char line[MAX_LINE_SIZE];
 
-    // TODO check the validity of each entry (no commas inside)
-
-    while ((nchars = getline(&line, &bufsize, fp)) != -1) {
-        if (nchars == 0) // empty line
-            continue;
-
+    while (fgets(line, MAX_LINE_SIZE, fp) != NULL) {
         /* iterate through tokens until name column reached */
-        token = strtok(line, ","); // get the first token
-        for (int i = 1; i < name_pos; i++)
-            token = strtok(NULL, ",");
+        const char *token = strtok(line, ",\n"); // get the first token
+        for (int i = 1; i <= name_pos; i++) {
+            checkToken(token);
+            token = strtok(NULL, ",\n");
+        }
 
-        token[strlen(token) - 2] = '\0'; // strip new line
         countTweeter(tweeter_counts, token, &num_tweeters);
     }
 
     qsort(tweeter_counts, num_tweeters, sizeof(TweeterEntry), comparator);
     printTweeters(tweeter_counts, num_tweeters);
 
-    /* free allocated data structures */
-    free(header);
-    free(line);
+    /* close the file */
     fclose(fp);
 
     return 0;
