@@ -5,6 +5,8 @@
 # define MAX_LINE_SIZE 1024
 # define MAX_FILE_SIZE 20000
 
+static int hasQuotes = 0;
+
 typedef struct TweeterEntry {
     char *name;
     int count;
@@ -56,8 +58,13 @@ int getNamePos(FILE *fp) {
 
         while(token) {
 
-            if (strcmp(token, "name") == 0 || strcmp(token, "\"name\"") == 0) {
+            if (strcmp(token, "name") == 0) {
                 // we found the name position
+                hasQuotes = 0;
+                return name_pos;
+            } else if (strcmp(token, "\"name\"") == 0) {
+                // we found the name position
+                hasQuotes = 1;
                 return name_pos;
             }
 
@@ -81,9 +88,16 @@ void getTweeters(FILE *fp, TweeterEntry *tweeter_counts, int *num_tweeters, int 
         for (int i = 0; i < name_pos && token; i++)
             token = strtok(NULL, ",\n");
 
-        printf("name %s\n", token);
+        if (token) {
+            printf("name %s\n", token);
 
-        countTweeter(tweeter_counts, token, num_tweeters);
+
+
+
+            countTweeter(tweeter_counts, token, num_tweeters);
+        } else {
+            terminate();
+        }
     }
 
     // TODO check the validity of each entry (no commas inside)
@@ -104,6 +118,7 @@ int main(int argc, char *argv[])
     int name_pos = getNamePos(fp);
 
     if (name_pos != -1) {
+        printf("pos %d and hasQuotes %d\n", name_pos, hasQuotes);
         // found position of name in header
         TweeterEntry tweeter_counts[MAX_FILE_SIZE];
         int num_tweeters = 0;
