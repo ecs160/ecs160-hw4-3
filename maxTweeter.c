@@ -48,6 +48,9 @@ int comparator(const void *a, const void *b) {
 
 /* given a string exit the program if dangling quotes are found */
 void checkToken(const char *token) {
+    if (strlen(token) == 0)
+        return;
+
     char first_char = token[0];
     char last_char = token[strlen(token) - 1];
 
@@ -56,6 +59,18 @@ void checkToken(const char *token) {
 
     if (first_char != '\"' && last_char != '\"')
         terminate();
+}
+
+int countCommas(char *header) {
+    int num_commas = 0;
+    for (int i = 0; i < MAX_LINE_SIZE; i++) {
+        if (header[i] == '\0')
+            return num_commas;
+
+        if (header[i] == ',')
+            num_commas++;
+    }
+    return num_commas;
 }
 
 int main(int argc, char *argv[])
@@ -68,34 +83,43 @@ int main(int argc, char *argv[])
         terminate();
 
     /* parse the header */
-    char header[MAX_LINE_SIZE];
+    // char header[MAX_LINE_SIZE];
+    char *header = (char *)malloc(MAX_LINE_SIZE * sizeof(char));
     if (fgets(header, MAX_LINE_SIZE, fp) == NULL)
         terminate();
 
+    int num_fields = countCommas(header) + 1;
     int name_pos = 0; // index of the 'name' column
-    char *token = strtok(header, ",\n"); // get the first token
-    while (token != NULL) {
+    char *token = strsep(&header, ",\n"); // get the first token
+    for (int i = 1; i < num_fields; i++) {
         checkToken(token);
 
         if (strcmp(token, "name") == 0 || strcmp(token, "\"name\"") == 0)
             break;
 
         name_pos++;
-        token = strtok(NULL, ",\n");
+        token = strsep(&header, ",\n");
     }
+
+    printf("num fields: %d\n", num_fields);
+    printf("name position: %d\n", name_pos);
 
     /* find tweeter counts */
     TweeterEntry tweeter_counts[MAX_FILE_SIZE];
     int num_tweeters = 0;
-    char line[MAX_LINE_SIZE];
+    // char line[MAX_LINE_SIZE];
+    char *line = (char *)malloc(MAX_LINE_SIZE * sizeof(char));
 
     while (fgets(line, MAX_LINE_SIZE, fp) != NULL) {
         /* iterate through tokens until name column reached */
-        const char *token = strtok(line, ",\n"); // get the first token
+        const char *token = strsep(&line, ",\n"); // get the first token
         for (int i = 1; i <= name_pos; i++) {
             checkToken(token);
-            token = strtok(NULL, ",\n");
+            token = strsep(&line, ",\n");
         }
+
+        if (token == NULL)
+            continue;
 
         countTweeter(tweeter_counts, token, &num_tweeters);
     }
