@@ -133,8 +133,6 @@ void getTweeters(FILE *fp, TweeterEntry *tweeter_counts, int *num_tweeters, int 
 
             if (strlen(word) > 0 && pos == name_pos) {
 
-                pos = -1;
-
                 // remove whitespace
                 char processed_word[MAX_LINE_SIZE];
                 sscanf(word, "%s", processed_word);
@@ -159,43 +157,29 @@ void getTweeters(FILE *fp, TweeterEntry *tweeter_counts, int *num_tweeters, int 
                     }
                 }
 
-                //countTweeter(tweeter_counts, token, num_tweeters);
+                countTweeter(tweeter_counts, processed_word, num_tweeters);
 
                 memset(processed_word, 0, MAX_LINE_SIZE);
             }
 
-
-/*
-            if (pos == name_pos) {
-
-
-
-                if (strncmp(word, "name", 4) == 0) {
-
-                }
-            }*/
-
             // reset word variable and index
             memset(word, 0, MAX_LINE_SIZE);
             i = 0;
+
+            if (c == '\n') {
+                // check if number of fields in the row matches the header count
+                if ((pos + 1) == numFields) {
+                    pos = -1;
+                } else {
+                    terminate();
+                }
+            }
 
         } else {
             word[i] = c;
             i++;
         }
     }
-
-    /*
-    while (fgets(line, MAX_LINE_SIZE, fp) != NULL) {
-        // go to position of the name
-        const char* token = strtok(line, ",\n");
-        for (int i = 0; i < name_pos && token; i++)
-            token = strtok(NULL, ",\n");
-
-        printf("name %s\n", token);
-
-        countTweeter(tweeter_counts, token, num_tweeters);
-    }*/
 }
 
 int main(int argc, char *argv[])
@@ -209,7 +193,6 @@ int main(int argc, char *argv[])
     }
 
     int name_pos = getNamePos(fp);
-    printf("fields: %d\n", numFields);
 
     if (name_pos != -1) {
         // found position of name in header
@@ -217,8 +200,8 @@ int main(int argc, char *argv[])
         int num_tweeters = 0;
         getTweeters(fp, tweeter_counts, &num_tweeters, name_pos);
 
-        //qsort(tweeter_counts, num_tweeters, sizeof(TweeterEntry), comparator);
-        //printTweeters(tweeter_counts, num_tweeters);
+        qsort(tweeter_counts, num_tweeters, sizeof(TweeterEntry), comparator);
+        printTweeters(tweeter_counts, num_tweeters);
     } else {
         // never found position of name in header
         terminate();
