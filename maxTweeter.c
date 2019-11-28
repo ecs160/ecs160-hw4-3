@@ -22,7 +22,9 @@ void terminate() {
 
 /* update the count of tweeter in the map */
 void countTweeter(TweeterEntry *tweeter_counts, const char *name, int *num_tweeters) {
+    // check out array if the name already exists
     for (int i = 0; i < *num_tweeters; i++) {
+        // if the name exists in our array, just increment the count
         if (strcmp(tweeter_counts[i].name, name) == 0) {
             tweeter_counts[i].count++;
             return;
@@ -30,8 +32,7 @@ void countTweeter(TweeterEntry *tweeter_counts, const char *name, int *num_tweet
     }
 
     /* if name not found set a new entry */
-    tweeter_counts[*num_tweeters].name =
-        (char *)malloc(strlen(name) * sizeof(char));
+    tweeter_counts[*num_tweeters].name = (char *)malloc(strlen(name) * sizeof(char));
     strcpy(tweeter_counts[*num_tweeters].name, name);
     tweeter_counts[*num_tweeters].count = 1;
     (*num_tweeters)++;
@@ -40,13 +41,14 @@ void countTweeter(TweeterEntry *tweeter_counts, const char *name, int *num_tweet
 /* print the counts of tweeters nicely */
 void printTweeters(TweeterEntry *tweeter_counts, int num_tweeters) {
     int n = num_tweeters < 10 ? num_tweeters : 10; // number of names to print
-    for (int i = 0; i < n; i++)
+    for (int i = 0; i < n; i++) {
         printf("%s: %d\n", tweeter_counts[i].name, tweeter_counts[i].count);
+    }
 }
 
 /* compare the counts of tweeters in the map for sorting */
 int comparator(const void *a, const void *b) {
-    return ((TweeterEntry*)a)->count - ((TweeterEntry*)b)->count;
+    return ((TweeterEntry*)b)->count - ((TweeterEntry*)a)->count;
 }
 
 /* get position of name in the header */
@@ -63,10 +65,12 @@ int getNamePos(FILE *fp) {
 
     while ((c = fgetc(fp)) != EOF) {
         
+        // increment line length for every new line
         if (c != '\n') {
             line_length++;
         }
 
+        // make sure line is within bound
         if (line_length == MAX_LINE_SIZE) {
             // line is too big
             terminate();
@@ -142,18 +146,22 @@ void getTweeters(FILE *fp, TweeterEntry *tweeter_counts, int *num_tweeters, int 
 
     while ((c = fgetc(fp)) != EOF) {
 
+        // increment line length for every new line
         if (c != '\n') {
             line_length++;
         }
 
+        // make sure line is within bound
         if (line_length == MAX_LINE_SIZE) {
             // line is too big
             terminate();
         }
+
         if (c == ',' || c == '\n') {
 
             pos++;
 
+            // make sure word is not empty and the position is the name position
             if (strlen(word) > 0 && pos == name_pos) {
 
                 // remove whitespace
@@ -228,9 +236,14 @@ int main(int argc, char *argv[])
         // found position of name in header
         TweeterEntry tweeter_counts[MAX_LINE_NUM];
         int num_tweeters = 0;
+
+        // get all the names from the file
         getTweeters(fp, tweeter_counts, &num_tweeters, name_pos);
 
+        // sort the names based on count
         qsort(tweeter_counts, num_tweeters, sizeof(TweeterEntry), comparator);
+
+        // print the top 10 tweeters
         printTweeters(tweeter_counts, num_tweeters);
     } else {
         // never found position of name in header
