@@ -5,6 +5,9 @@
 # define MAX_LINE_SIZE 1024
 # define MAX_FILE_SIZE 20000
 
+static int hasQuotes = 0;
+static int numFields = 0;
+
 typedef struct TweeterEntry {
     char *name;
     int count;
@@ -17,8 +20,7 @@ void terminate() {
 }
 
 /* update the count of tweeter in the map */
-void countTweeter(TweeterEntry *tweeter_counts, const char *name,
-                  int *num_tweeters) {
+void countTweeter(TweeterEntry *tweeter_counts, const char *name, int *num_tweeters) {
     for (int i = 0; i < *num_tweeters; i++) {
         if (strcmp(tweeter_counts[i].name, name) == 0) {
             tweeter_counts[i].count++;
@@ -46,10 +48,60 @@ int comparator(const void *a, const void *b) {
     return ((TweeterEntry*)a)->count - ((TweeterEntry*)b)->count;
 }
 
+/* get position of name in the header */
+int getNamePos(FILE *fp) {
+    /* parse the header */
+
+    char c;
+    char word[MAX_LINE_SIZE];
+    memset(word, 0, MAX_LINE_SIZE);
+    int i = 0;
+    int name_pos = -1;   // position of name
+    int found_name = 0; // track if we found name pos yet
+
+    while ((c = fgetc(fp)) != EOF) {
+        if (c == ',' || c == '\n') {
+
+            // increment numFields every time we see a comma
+            numFields++;
+
+            // increment name_pos if we didn't find name header yet
+            if (found_name == 0) {
+                name_pos++;
+            }
+
+            if (strncmp(word, "name", 4) == 0) {
+                // we found the name position
+                hasQuotes = 0;
+                found_name = 1;
+            } else if (strncmp(word, "\"name\"", 6) == 0) {
+                // we found the name position
+                hasQuotes = 1;
+                found_name = 1;
+            }
+
+            // reset word variable and index
+            memset(word, 0, MAX_LINE_SIZE);
+            i = 0;
+
+            // stop looking here
+            if (c == '\n') {
+                return name_pos;
+            }
+
+        } else {
+            word[i] = c;
+            i++;
+        }
+    }
+
+    return name_pos;
+}
+
 /* given a string exit the program if dangling quotes are found */
-void checkToken(const char *token) {
-    if (strlen(token) == 0)
-        return;
+int validToken(char *token) {
+    if (token == NULL || strlen(token) == 0)
+        return 0;
 
     char first_char = token[0];
     char last_char = token[strlen(token) - 1];
@@ -57,20 +109,93 @@ void checkToken(const char *token) {
     if (first_char == '\"' && last_char != '\"')
         terminate();
 
-    if (first_char != '\"' && last_char != '\"')
+    if (first_char != '\"' && last_char == '\"')
         terminate();
+
+    if (first_char == '\"' && last_char == '\"')
+        return 1;
+
+    return 0;
 }
 
-int countCommas(char *header) {
-    int num_commas = 0;
-    for (int i = 0; i < MAX_LINE_SIZE; i++) {
-        if (header[i] == '\0')
-            return num_commas;
+/* populate an array of tweeters along with their count */
+void getTweeters(FILE *fp, TweeterEntry *tweeter_counts, int *num_tweeters, int name_pos) {
+    // find tweeter counts
+    char word[MAX_LINE_SIZE];
+    char c;
+    int pos = -1;   // current field
+    int i = 0;
 
-        if (header[i] == ',')
-            num_commas++;
+    while ((c = fgetc(fp)) != EOF) {
+        if (c == ',' || c == '\n') {
+
+            pos++;
+
+            if (strlen(word) > 0 && pos == name_pos) {
+
+                pos = -1;
+
+                // remove whitespace
+                char processed_word[MAX_LINE_SIZE];
+                sscanf(word, "%s", processed_word);
+
+                if (hasQuotes) {
+                    if (validToken(processed_word)) {
+                        // word has valid open and close quotes
+
+                        // remove quotes
+                        char word_without_quotes[MAX_LINE_SIZE];
+                        int b = 0;
+                        for (int a = 1; a < strlen(processed_word) - 1; a++, b++) {
+                            word_without_quotes[b] = processed_word[a];
+                        }
+
+                        memcpy (processed_word, word_without_quotes, MAX_LINE_SIZE); 
+                        memset(word_without_quotes, 0, MAX_LINE_SIZE);
+
+                    } else {
+                        // no matching open and closed quotes so invalid
+                        terminate();
+                    }
+                }
+
+                //countTweeter(tweeter_counts, token, num_tweeters);
+
+                memset(processed_word, 0, MAX_LINE_SIZE);
+            }
+
+
+/*
+            if (pos == name_pos) {
+
+
+
+                if (strncmp(word, "name", 4) == 0) {
+
+                }
+            }*/
+
+            // reset word variable and index
+            memset(word, 0, MAX_LINE_SIZE);
+            i = 0;
+
+        } else {
+            word[i] = c;
+            i++;
+        }
     }
-    return num_commas;
+
+    /*
+    while (fgets(line, MAX_LINE_SIZE, fp) != NULL) {
+        // go to position of the name
+        const char* token = strtok(line, ",\n");
+        for (int i = 0; i < name_pos && token; i++)
+            token = strtok(NULL, ",\n");
+
+        printf("name %s\n", token);
+
+        countTweeter(tweeter_counts, token, num_tweeters);
+    }*/
 }
 
 int main(int argc, char *argv[])
@@ -79,55 +204,27 @@ int main(int argc, char *argv[])
     char *fname = argv[1];
     FILE *fp = fopen(fname, "r");
 
-    if (fp == NULL)
+    if (fp == NULL) {
         terminate();
-
-    /* parse the header */
-    // char header[MAX_LINE_SIZE];
-    char *header = (char *)malloc(MAX_LINE_SIZE * sizeof(char));
-    if (fgets(header, MAX_LINE_SIZE, fp) == NULL)
-        terminate();
-
-    int num_fields = countCommas(header) + 1;
-    int name_pos = 0; // index of the 'name' column
-    char *token = strsep(&header, ",\n"); // get the first token
-    for (int i = 1; i < num_fields; i++) {
-        checkToken(token);
-
-        if (strcmp(token, "name") == 0 || strcmp(token, "\"name\"") == 0)
-            break;
-
-        name_pos++;
-        token = strsep(&header, ",\n");
     }
 
-    printf("num fields: %d\n", num_fields);
-    printf("name position: %d\n", name_pos);
+    int name_pos = getNamePos(fp);
+    printf("fields: %d\n", numFields);
 
-    /* find tweeter counts */
-    TweeterEntry tweeter_counts[MAX_FILE_SIZE];
-    int num_tweeters = 0;
-    // char line[MAX_LINE_SIZE];
-    char *line = (char *)malloc(MAX_LINE_SIZE * sizeof(char));
+    if (name_pos != -1) {
+        // found position of name in header
+        TweeterEntry tweeter_counts[MAX_FILE_SIZE];
+        int num_tweeters = 0;
+        getTweeters(fp, tweeter_counts, &num_tweeters, name_pos);
 
-    while (fgets(line, MAX_LINE_SIZE, fp) != NULL) {
-        /* iterate through tokens until name column reached */
-        const char *token = strsep(&line, ",\n"); // get the first token
-        for (int i = 1; i <= name_pos; i++) {
-            checkToken(token);
-            token = strsep(&line, ",\n");
-        }
-
-        if (token == NULL)
-            continue;
-
-        countTweeter(tweeter_counts, token, &num_tweeters);
+        //qsort(tweeter_counts, num_tweeters, sizeof(TweeterEntry), comparator);
+        //printTweeters(tweeter_counts, num_tweeters);
+    } else {
+        // never found position of name in header
+        terminate();
     }
 
-    qsort(tweeter_counts, num_tweeters, sizeof(TweeterEntry), comparator);
-    printTweeters(tweeter_counts, num_tweeters);
-
-    /* close the file */
+    // close the file
     fclose(fp);
 
     return 0;

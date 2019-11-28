@@ -1,4 +1,4 @@
-,tweet,name
-,hello,NameOne
-,world,NameTwo
-,foo,NameThree
+,tweet,"name"
+,   "hello",  "NameOne"
+,"world"   ,"NameTwo"   
+,  "foo"  ,  "NameThree"  
