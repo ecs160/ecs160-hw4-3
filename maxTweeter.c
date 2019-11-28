@@ -3,10 +3,11 @@
 #include <string.h>
 
 # define MAX_LINE_SIZE 1024
-# define MAX_FILE_SIZE 20000
+# define MAX_LINE_NUM 20000
 
 static int hasQuotes = 0;
 static int numFields = 0;
+static int lineNum = 0;
 
 typedef struct TweeterEntry {
     char *name;
@@ -97,6 +98,7 @@ int getNamePos(FILE *fp) {
 
             // stop looking here
             if (c == '\n') {
+                lineNum++;
                 return name_pos;
             }
 
@@ -188,6 +190,13 @@ void getTweeters(FILE *fp, TweeterEntry *tweeter_counts, int *num_tweeters, int 
             i = 0;
 
             if (c == '\n') {
+                // check if we have too many lines
+                if (lineNum == MAX_LINE_NUM) {
+                    terminate();
+                }
+
+                lineNum++;
+
                 // check if number of fields in the row matches the header count
                 if ((pos + 1) == numFields) {
                     pos = -1;
