@@ -56,10 +56,21 @@ int getNamePos(FILE *fp) {
     char word[MAX_LINE_SIZE];
     memset(word, 0, MAX_LINE_SIZE);
     int i = 0;
+    int line_length = 0;
     int name_pos = -1;   // position of name
     int found_name = 0; // track if we found name pos yet
 
     while ((c = fgetc(fp)) != EOF) {
+        
+        if (c != '\n') {
+            line_length++;
+        }
+
+        if (line_length == MAX_LINE_SIZE) {
+            // line is too big
+            terminate();
+        }
+
         if (c == ',' || c == '\n') {
 
             // increment numFields every time we see a comma
@@ -125,8 +136,18 @@ void getTweeters(FILE *fp, TweeterEntry *tweeter_counts, int *num_tweeters, int 
     char c;
     int pos = -1;   // current field
     int i = 0;
+    int line_length = 0;
 
     while ((c = fgetc(fp)) != EOF) {
+
+        if (c != '\n') {
+            line_length++;
+        }
+
+        if (line_length == MAX_LINE_SIZE) {
+            // line is too big
+            terminate();
+        }
         if (c == ',' || c == '\n') {
 
             pos++;
