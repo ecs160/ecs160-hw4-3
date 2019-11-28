@@ -226,7 +226,7 @@ int main(int argc, char *argv[])
 
     if (name_pos != -1) {
         // found position of name in header
-        TweeterEntry tweeter_counts[MAX_FILE_SIZE];
+        TweeterEntry tweeter_counts[MAX_LINE_NUM];
         int num_tweeters = 0;
         getTweeters(fp, tweeter_counts, &num_tweeters, name_pos);
 
