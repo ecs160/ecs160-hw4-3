@@ -5,9 +5,7 @@
 # define MAX_LINE_SIZE 1024
 # define MAX_LINE_NUM 20000
 
-static int hasQuotesCount = 0;
-static int noQuotesCount = 0;
-static int fileShouldHaveQuotes = 0;
+static int hasQuotes[MAX_LINE_SIZE];
 static int numFields = 0;
 static int lineNum = 0;
 
@@ -54,7 +52,7 @@ int comparator(const void *a, const void *b) {
 }
 
 /* given a string exit the program if dangling quotes are found */
-int validToken(char *token, int *first, int *last, int test_file_should_have_quote) {
+int validToken(char *token, int pos, int *first, int *last, int test_file_should_have_quote) {
     if (token == NULL || strlen(token) == 0) {
         return 1;
     }
@@ -76,12 +74,17 @@ int validToken(char *token, int *first, int *last, int test_file_should_have_quo
 
     // valid open and close quote found
     if (first_quote_index < last_quote_index) {
-        // it shouldn't have quote
-        if (test_file_should_have_quote && fileShouldHaveQuotes == 0) {
-            terminate();
-        }
 
-        hasQuotesCount++;
+        if (test_file_should_have_quote) {
+            if (hasQuotes[pos] == 0) {
+                // it shouldn't have quote
+                terminate();
+            }
+        } else {
+            // header is calling this function
+            // set initial value
+            hasQuotes[pos] = 1;
+        }
 
         if (first != NULL) {
             *first = first_quote_index;
@@ -97,12 +100,16 @@ int validToken(char *token, int *first, int *last, int test_file_should_have_quo
     // no quotes at all
     if (first_quote_index == strlen(token) && last_quote_index == -1) {
 
-        // it should have quote
-        if (test_file_should_have_quote && fileShouldHaveQuotes == 1) {
-            terminate();
+        if (test_file_should_have_quote) {
+            if (hasQuotes[pos] == 1) {
+                // it should have quote
+                terminate();
+            }
+        } else {
+            // header is calling this function
+            // set initial value
+            hasQuotes[pos] = 0;
         }
-
-        noQuotesCount++;
 
         if (first != NULL) {
             *first = -1;
@@ -167,7 +174,7 @@ int getNamePos(FILE *fp) {
                 }
             }
 
-            if (validToken(processed_word, NULL, NULL, 0)) {
+            if (validToken(processed_word, numFields - 1, NULL, NULL, 0)) {
                 if (strncmp(processed_word, "\"name\"", 6) == 0 || strncmp(processed_word, "name", 4) == 0) {
                     // we found the name position
                     found_name = 1;
@@ -188,15 +195,6 @@ int getNamePos(FILE *fp) {
                 // didn't find a name header
                 if (found_name == 0) {
                     return -1;
-                }
-
-                // either no quotes or has quotes surrounding header item, NOT BOTH
-                if (noQuotesCount > 0 && hasQuotesCount > 0) {
-                    return -1;
-                } else if (noQuotesCount == 0) {
-                    fileShouldHaveQuotes = 1;
-                } else if (hasQuotesCount == 0) {
-                    fileShouldHaveQuotes = 0;
                 }
 
                 lineNum++;
@@ -238,36 +236,33 @@ void getTweeters(FILE *fp, TweeterEntry *tweeter_counts, int *num_tweeters, int 
 
             pos++;
 
-            // remove starting and trailing whitespace
             char processed_word[MAX_LINE_SIZE];
-            char *tok = strtok(word, " ");
-            while (tok != NULL)
-            {
-                strcat(processed_word, tok);
-                tok = strtok(NULL, " ");
-
-                if (tok != NULL) {
-                    strcat(processed_word, " ");
-                }
-            }
+            strcat(processed_word, word);
 
             // get the value to remove quotes later if any
             int first_quote_index = 0;
             int last_quote_index = 0;
 
-            if (validToken(processed_word, &first_quote_index, &last_quote_index, 1)) {
+            if (validToken(processed_word, pos, &first_quote_index, &last_quote_index, 1)) {
                 // word has valid open and close quotes
 
                 if (first_quote_index != -1 && last_quote_index != -1) {
-                    // remove quotes
-                    char word_without_quotes[MAX_LINE_SIZE];
-                    int b = 0;
-                    for (int a = first_quote_index + 1; a < last_quote_index; a++, b++) {
-                        word_without_quotes[b] = processed_word[a];
-                    }
+                    
+                    // remove closing quote first
+                    memmove(&processed_word[last_quote_index], 
+                        &processed_word[last_quote_index + 1], 
+                        strlen(processed_word) - last_quote_index);
 
-                    memcpy (processed_word, word_without_quotes, MAX_LINE_SIZE); 
-                    memset(word_without_quotes, 0, MAX_LINE_SIZE);
+                    // remove opening quote last
+                    memmove(&processed_word[first_quote_index], 
+                        &processed_word[first_quote_index + 1], 
+                        strlen(processed_word) - first_quote_index);
+
+
+                    // null terminate the string depending on the position of name
+                    if (pos == numFields - 1) {
+                        processed_word[strlen(processed_word) - 1] = '\0';
+                    }
                 }
 
             } else {
@@ -279,9 +274,8 @@ void getTweeters(FILE *fp, TweeterEntry *tweeter_counts, int *num_tweeters, int 
                 countTweeter(tweeter_counts, processed_word, num_tweeters);
             }
 
-            memset(processed_word, 0, MAX_LINE_SIZE);
-
             // reset word variable and index
+            memset(processed_word, 0, MAX_LINE_SIZE);
             memset(word, 0, MAX_LINE_SIZE);
             i = 0;
 
@@ -333,6 +327,10 @@ int main(int argc, char *argv[])
 
         // print the top 10 tweeters
         printTweeters(tweeter_counts, num_tweeters);
+
+        for (int i = 0; i < num_tweeters; i++) {
+            free(tweeter_counts[i].name);
+        }
     } else {
         // never found position of name in header
         terminate();
