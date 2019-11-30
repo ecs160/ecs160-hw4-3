@@ -72,6 +72,11 @@ int validToken(char *token, int pos, int *first, int *last, int test_file_should
         }
     }
 
+    if (first_quote_index == 0 && last_quote_index == 1) {
+        hasQuotes[pos] = 0;
+        return 1;
+    }
+
     // valid open and close quote found
     if (first_quote_index < last_quote_index) {
 
