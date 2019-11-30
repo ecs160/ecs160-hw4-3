@@ -140,7 +140,7 @@ int getNamePos(FILE *fp) {
 
     while ((c = fgetc(fp)) != EOF) {
         
-        // increment line length for every new line
+        // increment line length for every non new line
         if (c != '\n') {
             line_length++;
         }
@@ -221,7 +221,7 @@ void getTweeters(FILE *fp, TweeterEntry *tweeter_counts, int *num_tweeters, int 
 
     while ((c = fgetc(fp)) != EOF) {
 
-        // increment line length for every new line
+        // increment line length for every non new line
         if (c != '\n') {
             line_length++;
         }
@@ -286,6 +286,7 @@ void getTweeters(FILE *fp, TweeterEntry *tweeter_counts, int *num_tweeters, int 
                 }
 
                 lineNum++;
+                line_length = 0;
 
                 // check if number of fields in the row matches the header count
                 if ((pos + 1) == numFields) {
